@@ -1,299 +1,234 @@
-name: Build sideloaded IPA from Release Assets
+name: Build DEB from Release Assets
 
 on:
-    workflow_dispatch:
-        inputs:
-            decrypted_instagram_url:
-                description: "Decrypted Instagram IPA — direct URL"
-                default: ""
-                required: true
-                type: string
-            target:
-                description: "Instagram version (410 needs a 410.x IPA above)"
-                default: "latest"
-                required: false
-                type: choice
-                options:
-                    - "latest"
-                    - "410"
-            build_sideload:
-                description: "Sideload IPA — with plugins"
-                default: true
-                required: false
-                type: boolean
-            build_noplugins:
-                description: "No-plugins IPA — any sideloader / free account"
-                default: false
-                required: false
-                type: boolean
-            dup_bundle_id:
-                description: "Bundle id (no-plugins only, blank = com.burbn.instagram)"
-                default: ""
-                required: false
-                type: string
-            dup_name:
-                description: "App name on Home Screen (blank = Instagram)"
-                default: ""
-                required: false
-                type: string
-            release_tag:
-                description: "Release tag (blank = latest)"
-                default: ""
-                required: false
-                type: string
-            upload_artifact:
-                description: "Upload the built IPA"
-                default: true
-                required: false
-                type: boolean
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Instagram version (410 needs a 410.x DEB)"
+        default: "latest"
+        required: false
+        type: choice
+        options:
+          - "latest"
+          - "410"
+
+      release_tag:
+        description: "Release tag (blank = latest)"
+        default: ""
+        required: false
+        type: string
+
+      upload_artifact:
+        description: "Upload the built DEB"
+        default: true
+        required: false
+        type: boolean
 
 concurrency:
-    group: ${{ github.workflow }}-${{ github.ref }}
-    cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
-    UPSTREAM_REPO: faroukbmiled/RyukGram
+  UPSTREAM_REPO: faroukbmiled/RyukGram
 
 jobs:
-    build:
-        name: Build RyukGram from Release
-        runs-on: macos-latest
-        permissions:
-            contents: read
+  build:
+    name: Build RyukGram DEB
+    runs-on: macos-latest
 
-        steps:
-            - name: Validate selection
-              env:
-                DUP_ID: ${{ inputs.dup_bundle_id }}
-              run: |
-                if [ "${{ inputs.build_sideload }}" != "true" ] && \
-                   [ "${{ inputs.build_noplugins }}" != "true" ]; then
-                  echo "::error::Select at least one of build_sideload / build_noplugins."
-                  exit 1
-                fi
-                if [ -n "$DUP_ID" ] && [ "${{ inputs.build_noplugins }}" != "true" ]; then
-                  echo "::error::A dup bundle id needs the no-plugins build. Enable build_noplugins."
-                  exit 1
-                fi
+    permissions:
+      contents: read
 
-            - name: Checkout
-              uses: actions/checkout@v4
+    steps:
 
-            - name: Install Dependencies
-              run: brew install dpkg
+      # =========================
+      # Resolve release tag
+      # =========================
+      - name: Resolve release tag
+        id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_TAG: ${{ inputs.release_tag }}
+          INPUT_TARGET: ${{ inputs.target }}
+        run: |
+          set -euo pipefail
 
-            - name: Install IPA tooling (cyan + ipapatch)
-              run: |
-                pip install --force-reinstall https://github.com/asdfzxcvbn/pyzule-rw/archive/main.zip
-                mkdir -p "$HOME/.local/bin"
-                curl -fLo "$HOME/.local/bin/ipapatch" https://github.com/asdfzxcvbn/ipapatch/releases/download/v2.1.3/ipapatch.macos-arm64
-                chmod +x "$HOME/.local/bin/ipapatch"
-                echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          if [ -n "$INPUT_TAG" ]; then
+            TAG="$INPUT_TAG"
+          else
+            TAG="$(gh release view \
+              --repo "$UPSTREAM_REPO" \
+              --json tagName \
+              -q .tagName)"
+          fi
 
-            - name: Resolve release tag
-              id: tag
-              env:
-                GH_TOKEN: ${{ github.token }}
-                INPUT_TAG: ${{ inputs.release_tag }}
-                INPUT_TARGET: ${{ inputs.target }}
-              run: |
-                set -euo pipefail
-                if [ -n "$INPUT_TAG" ]; then
-                  TAG="$INPUT_TAG"
-                else
-                  TAG="$(gh release view --repo "$UPSTREAM_REPO" --json tagName -q .tagName)"
-                fi
-                [ -n "$TAG" ] || { echo "::error::Could not resolve release tag."; exit 1; }
-                VERSION="${TAG#v}"
-                # 410 builds pull the RyukGram-410 deb and tag their output -410.
-                SUF=""; [ "$INPUT_TARGET" = "410" ] && SUF="-410"
-                echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-                echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-                echo "TAG=${TAG}" >> "$GITHUB_ENV"
-                echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
-                echo "SUF=${SUF}" >> "$GITHUB_ENV"
-                echo "Using release tag: ${TAG} (version ${VERSION}${SUF})"
+          [ -n "$TAG" ] || {
+            echo "::error::Could not resolve release tag."
+            exit 1
+          }
 
-            - name: Download release assets (rootless deb + injection dylibs)
-              env:
-                GH_TOKEN: ${{ github.token }}
-                TARGET: ${{ inputs.target }}
-              run: |
-                set -euo pipefail
-                mkdir -p packages release-assets
+          VERSION="${TAG#v}"
 
-                # 410 tweak lives in the RyukGram-410 deb; main in RyukGram_. The
-                # plugin dylibs are shared, so both targets pull the same ones.
-                if [ "$TARGET" = "410" ]; then DEBP="RyukGram-410_*_rootless.deb"; else DEBP="RyukGram_*_rootless.deb"; fi
-                gh release download "$TAG" --repo "$UPSTREAM_REPO" --dir release-assets --pattern "$DEBP"
-                DEB="$(ls -t release-assets/$DEBP 2>/dev/null | head -n1 || true)"
-                [ -n "$DEB" ] || { echo "::error::Rootless .deb ($DEBP) not found in release $TAG."; exit 1; }
-                echo "DEB=${DEB}" >> "$GITHUB_ENV"
-                IG_VER="$(basename "$DEB" | sed -nE 's/.*_IG(.*)_rootless\.deb$/\1/p')"
-                [ -n "$IG_VER" ] || IG_VER=unknown
-                echo "IG_VER=${IG_VER}" >> "$GITHUB_ENV"
+          if [ "$INPUT_TARGET" = "410" ]; then
+            SUF="-410"
+          else
+            SUF=""
+          fi
 
-                if [ "${{ inputs.build_sideload }}" = "true" ]; then
-                  gh release download "$TAG" --repo "$UPSTREAM_REPO" --dir release-assets \
-                    --pattern "zxPluginsInject_v*.dylib"
-                  ZX_DYLIB="$(ls -t release-assets/zxPluginsInject_v*.dylib 2>/dev/null | head -n1 || true)"
-                  [ -n "$ZX_DYLIB" ] || { echo "::error::zxPluginsInject dylib not found in release $TAG (enable include_zxinject when releasing)."; exit 1; }
-                  echo "ZX_DYLIB=${ZX_DYLIB}" >> "$GITHUB_ENV"
-                fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
-                if [ "${{ inputs.build_noplugins }}" = "true" ]; then
-                  gh release download "$TAG" --repo "$UPSTREAM_REPO" --dir release-assets \
-                    --pattern "NoPluginsPatch_v*.dylib"
-                  NP_DYLIB="$(ls -t release-assets/NoPluginsPatch_v*.dylib 2>/dev/null | head -n1 || true)"
-                  [ -n "$NP_DYLIB" ] || { echo "::error::NoPluginsPatch dylib not found in release $TAG (enable include_noplugins_patch when releasing)."; exit 1; }
-                  echo "NP_DYLIB=${NP_DYLIB}" >> "$GITHUB_ENV"
-                fi
+          echo "TAG=${TAG}" >> "$GITHUB_ENV"
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+          echo "SUF=${SUF}" >> "$GITHUB_ENV"
 
-                ls -la release-assets
+          echo "========================================"
+          echo "Release tag : ${TAG}"
+          echo "Version     : ${VERSION}${SUF}"
+          echo "Target      : ${INPUT_TARGET}"
+          echo "========================================"
 
-            - name: Extract dylib + bundle from rootless deb
-              run: |
-                set -euo pipefail
-                STAGE="$(mktemp -d)"
-                dpkg-deb -x "$DEB" "$STAGE"
 
-                DYLIB_SRC="$(find "$STAGE" -type f -name 'RyukGram.dylib' | head -1)"
-                BUNDLE_SRC="$(find "$STAGE" -type d -name 'RyukGram.bundle' | head -1)"
-                [ -n "$DYLIB_SRC" ] || { echo "::error::RyukGram.dylib not found in deb."; exit 1; }
-                [ -n "$BUNDLE_SRC" ] || { echo "::error::RyukGram.bundle not found in deb."; exit 1; }
+      # =========================
+      # Download DEB
+      # =========================
+      - name: Download RyukGram rootless DEB
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET: ${{ inputs.target }}
+        run: |
+          set -euo pipefail
 
-                cp "$DYLIB_SRC" packages/RyukGram.dylib
-                rm -rf packages/RyukGram.bundle
-                cp -R "$BUNDLE_SRC" packages/RyukGram.bundle
+          mkdir -p packages release-assets
 
-                if [ "${{ inputs.build_sideload }}" = "true" ]; then
-                  # Match the @rpath LC that ipapatch writes into target binaries.
-                  cp "$ZX_DYLIB" packages/zxPluginsInject.dylib
-                  install_name_tool -id "@rpath/zxPluginsInject.dylib" packages/zxPluginsInject.dylib 2>/dev/null || true
-                fi
+          if [ "$TARGET" = "410" ]; then
+            DEBP="RyukGram-410_*_rootless.deb"
+          else
+            DEBP="RyukGram_*_rootless.deb"
+          fi
 
-                if [ "${{ inputs.build_noplugins }}" = "true" ]; then
-                  cp "$NP_DYLIB" packages/NoPluginsPatch.dylib
-                fi
+          echo "Downloading:"
+          echo "$DEBP"
 
-                rm -rf "$STAGE"
-                ls -la packages
-                ls -la packages/RyukGram.bundle | head -20
+          gh release download "$TAG" \
+            --repo "$UPSTREAM_REPO" \
+            --dir release-assets \
+            --pattern "$DEBP"
 
-            - name: Prepare Instagram IPA
-              env:
-                Instagram_URL: ${{ inputs.decrypted_instagram_url }}
-              run: |
-                set -euo pipefail
-                wget "$Instagram_URL" --no-verbose -O packages/com.burbn.instagram.ipa
+          DEB="$(ls -t release-assets/$DEBP 2>/dev/null | head -n1 || true)"
 
-                # The IPA is user-supplied, so its version can differ from the deb's.
-                PLIST="$(unzip -Z1 packages/com.burbn.instagram.ipa 'Payload/*.app/Info.plist' 2>/dev/null | awk -F/ 'NF==3' | head -1 || true)"
-                IPA_VER=""
-                if [ -n "$PLIST" ]; then
-                  STAGE="$(mktemp -d)"
-                  unzip -qo -j packages/com.burbn.instagram.ipa "$PLIST" -d "$STAGE"
-                  IPA_VER="$(plutil -extract CFBundleShortVersionString raw -o - "$STAGE/Info.plist" 2>/dev/null || true)"
-                  rm -rf "$STAGE"
-                fi
-                if [ -n "$IPA_VER" ]; then
-                  echo "IG_VER=${IPA_VER}" >> "$GITHUB_ENV"
-                  echo "IG version from IPA: ${IPA_VER} (deb said ${IG_VER})"
-                else
-                  echo "::warning::Could not read the version from the IPA; keeping IG_VER=${IG_VER}"
-                fi
+          [ -n "$DEB" ] || {
+            echo "::error::Rootless .deb ($DEBP) not found in release $TAG."
+            exit 1
+          }
 
-                ls -la packages
+          cp "$DEB" packages/
 
-            - name: Build sideloaded IPA (cyan + ipapatch with zxPluginsInject)
-              if: ${{ inputs.build_sideload }}
-              env:
-                DUP_NAME: ${{ inputs.dup_name }}
-              run: |
-                set -euo pipefail
-                rm -f packages/RyukGram-sideloaded.ipa
-                NAME_ARGS=()
-                [ -n "$DUP_NAME" ] && NAME_ARGS=(-n "$DUP_NAME")
-                cyan \
-                  -i packages/com.burbn.instagram.ipa \
-                  -o packages/RyukGram-sideloaded.ipa \
-                  -f packages/RyukGram.dylib packages/RyukGram.bundle \
-                  -c 9 -m 15.0 -du \
-                  ${NAME_ARGS[@]+"${NAME_ARGS[@]}"}
+          echo "DEB=$DEB" >> "$GITHUB_ENV"
 
-                # Embed Safari "Open in Instagram" extension before ipapatch
-                # re-signs, so instagram.com links open the app.
-                APPEX_SRC="extensions/OpenInstagramSafariExtension.appex"
-                if [ -d "$APPEX_SRC" ]; then
-                  echo "Embedding Safari extension"
-                  INJECT_TMP="$(mktemp -d)"
-                  unzip -q packages/RyukGram-sideloaded.ipa -d "$INJECT_TMP"
-                  APP_DIR="$(find "$INJECT_TMP/Payload" -maxdepth 1 -type d -name '*.app' | head -1)"
-                  if [ -n "$APP_DIR" ]; then
-                    mkdir -p "$APP_DIR/PlugIns"
-                    rm -rf "$APP_DIR/PlugIns/OpenInstagramSafariExtension.appex"
-                    cp -R "$APPEX_SRC" "$APP_DIR/PlugIns/"
-                    ( cd "$INJECT_TMP" && zip -qr -9 ../repacked.ipa Payload )
-                    mv "$INJECT_TMP/../repacked.ipa" packages/RyukGram-sideloaded.ipa
-                  fi
-                  rm -rf "$INJECT_TMP"
-                fi
+          echo
+          echo "Downloaded DEB:"
+          ls -lh "$DEB"
 
-                echo "Running ipapatch (zxPluginsInject LC injection)"
-                ipapatch \
-                  --input packages/RyukGram-sideloaded.ipa \
-                  --inplace --noconfirm \
-                  --dylib packages/zxPluginsInject.dylib
 
-                mv packages/RyukGram-sideloaded.ipa "packages/RyukGram_sideload_v${VERSION}_IG${IG_VER}.ipa"
-                ls -la packages
+      # =========================
+      # Verify DEB
+      # =========================
+      - name: Verify DEB package
+        run: |
+          set -euo pipefail
 
-            - name: Build no-plugins IPA (cyan + NoPluginsPatch, appex stripped)
-              if: ${{ inputs.build_noplugins }}
-              env:
-                DUP_ID: ${{ inputs.dup_bundle_id }}
-                DUP_NAME: ${{ inputs.dup_name }}
-              run: |
-                set -euo pipefail
-                rm -f packages/RyukGram-noplugins.ipa
-                DUP_ARGS=()
-                [ -n "$DUP_ID" ] && DUP_ARGS+=(-b "$DUP_ID")
-                [ -n "$DUP_NAME" ] && DUP_ARGS+=(-n "$DUP_NAME")
-                cyan \
-                  -i packages/com.burbn.instagram.ipa \
-                  -o packages/RyukGram-noplugins.ipa \
-                  -f packages/RyukGram.dylib packages/NoPluginsPatch.dylib packages/RyukGram.bundle \
-                  -c 9 -m 15.0 -du \
-                  ${DUP_ARGS[@]+"${DUP_ARGS[@]}"}
+          DEB_FILE="$(find packages -maxdepth 1 -type f -name '*.deb' | head -n1)"
 
-                # No-plugins: strip every app extension (no ipapatch, no Safari ext).
-                INJECT_TMP="$(mktemp -d)"
-                unzip -q packages/RyukGram-noplugins.ipa -d "$INJECT_TMP"
-                APP_DIR="$(find "$INJECT_TMP/Payload" -maxdepth 1 -type d -name '*.app' | head -1)"
-                if [ -n "$APP_DIR" ]; then
-                  find "$APP_DIR" -type d -name '*.appex' -prune -exec rm -rf {} +
-                  ( cd "$INJECT_TMP" && zip -qr -9 ../repacked.ipa Payload )
-                  mv "$INJECT_TMP/../repacked.ipa" packages/RyukGram-noplugins.ipa
-                fi
-                rm -rf "$INJECT_TMP"
+          [ -n "$DEB_FILE" ] || {
+            echo "::error::No DEB file found."
+            exit 1
+          }
 
-                OUT="RyukGram_noplugins_v${VERSION}_IG${IG_VER}.ipa"
-                [ -n "$DUP_ID" ] && OUT="RyukGram_noplugins_v${VERSION}_IG${IG_VER}-dup.ipa"
-                mv packages/RyukGram-noplugins.ipa "packages/${OUT}"
-                ls -la packages
+          echo "========================================"
+          echo "DEB:"
+          echo "$DEB_FILE"
+          echo
+          echo "Package information:"
+          dpkg-deb -I "$DEB_FILE"
+          echo
+          echo "Package contents:"
+          dpkg-deb -c "$DEB_FILE"
+          echo "========================================"
 
-            - name: Upload sideload IPA artifact
-              if: ${{ inputs.upload_artifact && inputs.build_sideload }}
-              uses: actions/upload-artifact@v4
-              with:
-                name: RyukGram_sideload_v${{ steps.tag.outputs.version }}
-                path: packages/RyukGram_sideload_v*.ipa
-                if-no-files-found: error
 
-            - name: Upload no-plugins IPA artifact
-              if: ${{ inputs.upload_artifact && inputs.build_noplugins }}
-              uses: actions/upload-artifact@v4
-              with:
-                name: RyukGram_noplugins_v${{ steps.tag.outputs.version }}
-                path: packages/RyukGram_noplugins*.ipa
-                if-no-files-found: error
+      # =========================
+      # Extract and verify dylib
+      # =========================
+      - name: Verify RyukGram files
+        run: |
+          set -euo pipefail
+
+          STAGE="$(mktemp -d)"
+
+          dpkg-deb -x "$DEB" "$STAGE"
+
+          echo "Searching RyukGram.dylib..."
+          DYLIB_SRC="$(find "$STAGE" -type f -name 'RyukGram.dylib' | head -n1 || true)"
+
+          echo "Searching RyukGram.bundle..."
+          BUNDLE_SRC="$(find "$STAGE" -type d -name 'RyukGram.bundle' | head -n1 || true)"
+
+          if [ -n "$DYLIB_SRC" ]; then
+            echo "✓ RyukGram.dylib"
+            ls -lh "$DYLIB_SRC"
+          else
+            echo "::warning::RyukGram.dylib not found in DEB."
+          fi
+
+          if [ -n "$BUNDLE_SRC" ]; then
+            echo "✓ RyukGram.bundle"
+            ls -la "$BUNDLE_SRC"
+          else
+            echo "::warning::RyukGram.bundle not found in DEB."
+          fi
+
+          rm -rf "$STAGE"
+
+
+      # =========================
+      # Rename DEB
+      # =========================
+      - name: Rename DEB
+        run: |
+          set -euo pipefail
+
+          DEB_FILE="$(find packages -maxdepth 1 -type f -name '*.deb' | head -n1)"
+
+          [ -n "$DEB_FILE" ] || {
+            echo "::error::No DEB file found."
+            exit 1
+          }
+
+          BASENAME="$(basename "$DEB_FILE")"
+
+          if [ "${{ inputs.target }}" = "410" ]; then
+            OUT="RyukGram-${VERSION}-410_rootless.deb"
+          else
+            OUT="RyukGram-${VERSION}_rootless.deb"
+          fi
+
+          mv "$DEB_FILE" "packages/$OUT"
+
+          echo "FINAL_DEB=packages/$OUT" >> "$GITHUB_ENV"
+
+          echo
+          echo "Final DEB:"
+          ls -lh "packages/$OUT"
+
+
+      # =========================
+      # Upload DEB
+      # =========================
+      - name: Upload DEB artifact
+        if: ${{ inputs.upload_artifact }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: RyukGram_DEB_v${{ steps.tag.outputs.version }}${{ inputs.target == '410' && '_410' || '' }}
+          path: packages/*.deb
+          if-no-files-found: error
