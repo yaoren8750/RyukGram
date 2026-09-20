@@ -1,34 +1,8 @@
-name: Build RyukGram DEB from Release
+
+name: Download RyukGram DEB
 
 on:
   workflow_dispatch:
-    inputs:
-      target:
-        description: "Instagram version target"
-        default: "latest"
-        required: false
-        type: choice
-        options:
-          - latest
-          - 410
-
-      release_tag:
-        description: "Release tag (blank = latest)"
-        default: ""
-        required: false
-        type: string
-
-      upload_artifact:
-        description: "Upload DEB artifact"
-        default: true
-        required: false
-        type: boolean
-
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 
 env:
   UPSTREAM_REPO: faroukbmiled/RyukGram
@@ -38,292 +12,79 @@ jobs:
 
   build:
 
-    name: Download RyukGram Rootless DEB
-
     runs-on: macos-latest
-
-    permissions:
-      contents: read
-
 
     steps:
 
+    - name: Install dpkg
+      run: |
+        brew install dpkg
 
-      # -------------------------
-      # Install tools
-      # -------------------------
 
-      - name: Install Dependencies
-        run: |
-          brew install dpkg
+    - name: Get latest release
+      id: release
+      run: |
+        TAG=$(gh release view \
+        --repo "$UPSTREAM_REPO" \
+        --json tagName \
+        -q .tagName)
 
+        echo "TAG=$TAG" >> $GITHUB_ENV
 
-      # -------------------------
-      # Checkout
-      # -------------------------
+        echo "Release:"
+        echo $TAG
 
-      - name: Checkout
-        uses: actions/checkout@v4
 
 
+    - name: Download DEB
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -e
 
-      # -------------------------
-      # Resolve Release
-      # -------------------------
+        mkdir -p output
 
-      - name: Resolve release tag
-        id: tag
 
-        env:
-          GH_TOKEN: ${{ github.token }}
-          INPUT_TAG: ${{ inputs.release_tag }}
+        gh release download "$TAG" \
+          --repo "$UPSTREAM_REPO" \
+          --dir output \
+          --pattern "*rootless.deb"
 
-        run: |
-          set -euo pipefail
 
 
-          if [ -n "$INPUT_TAG" ]; then
-            TAG="$INPUT_TAG"
-          else
-            TAG="$(gh release view \
-              --repo "$UPSTREAM_REPO" \
-              --json tagName \
-              -q .tagName)"
-          fi
+        echo "Downloaded:"
+        ls -lh output
 
 
-          if [ -z "$TAG" ]; then
-            echo "::error::Release tag not found"
-            exit 1
-          fi
 
+    - name: Verify DEB
+      run: |
+        set -e
 
-          VERSION="${TAG#v}"
 
+        DEB=$(find output -name "*.deb" | head -1)
 
-          echo "TAG=$TAG" >> "$GITHUB_ENV"
-          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
+        if [ -z "$DEB" ]; then
+          echo "No deb found"
+          exit 1
+        fi
 
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
+        echo "Checking:"
+        echo "$DEB"
 
-          echo "Using release:"
-          echo "$TAG"
 
+        dpkg-deb -I "$DEB"
 
 
-      # -------------------------
-      # Download DEB
-      # -------------------------
 
-      - name: Download rootless DEB
+    - name: Upload DEB
 
-        env:
-          GH_TOKEN: ${{ github.token }}
+      uses: actions/upload-artifact@v4
 
-        run: |
-          set -euo pipefail
+      with:
 
+        name: RyukGram-DEB
 
-          mkdir -p packages release-assets
-
-
-          if [ "${{ inputs.target }}" = "410" ]; then
-
-            PATTERN="RyukGram-410_*_rootless.deb"
-
-          else
-
-            PATTERN="RyukGram_*_rootless.deb"
-
-          fi
-
-
-          echo "Download pattern:"
-          echo "$PATTERN"
-
-
-          gh release download "$TAG" \
-            --repo "$UPSTREAM_REPO" \
-            --dir release-assets \
-            --pattern "$PATTERN"
-
-
-
-          DEB=$(find release-assets \
-            -name "*.deb" \
-            -type f \
-            | sort \
-            | tail -n1)
-
-
-
-          if [ -z "$DEB" ]; then
-            echo "::error::No DEB found"
-            exit 1
-          fi
-
-
-
-          cp "$DEB" packages/
-
-
-          echo "DEB=$DEB" >> "$GITHUB_ENV"
-
-
-
-          echo "Downloaded:"
-          ls -lh packages
-
-
-
-      # -------------------------
-      # Verify DEB
-      # -------------------------
-
-      - name="Verify DEB package"
-        run: |
-          set -euo pipefail
-
-
-          DEB_FILE=$(find packages \
-            -maxdepth 1 \
-            -name "*.deb" \
-            | head -n1)
-
-
-
-          if [ -z "$DEB_FILE" ]; then
-
-            echo "::error::No deb file"
-            exit 1
-
-          fi
-
-
-
-          echo "================================"
-          echo "DEB:"
-          echo "$DEB_FILE"
-
-
-          echo
-          echo "Package info:"
-          dpkg-deb -I "$DEB_FILE"
-
-
-
-          echo
-          echo "Package files:"
-          dpkg-deb -c "$DEB_FILE"
-
-
-
-          echo "================================"
-
-
-
-      # -------------------------
-      # Check files
-      # -------------------------
-
-      - name: Check RyukGram files
-
-        run: |
-          set -euo pipefail
-
-
-          TMP=$(mktemp -d)
-
-
-
-          DEB_FILE=$(find packages \
-            -maxdepth 1 \
-            -name "*.deb" \
-            | head -n1)
-
-
-
-          dpkg-deb -x "$DEB_FILE" "$TMP"
-
-
-
-          echo "Searching dylib..."
-
-          find "$TMP" \
-            -name "RyukGram.dylib" \
-            -print
-
-
-
-          echo
-
-          echo "Searching bundle..."
-
-          find "$TMP" \
-            -name "RyukGram.bundle" \
-            -print
-
-
-
-          rm -rf "$TMP"
-
-
-
-      # -------------------------
-      # Rename
-      # -------------------------
-
-      - name: Rename DEB
-
-        run: |
-          set -euo pipefail
-
-
-          FILE=$(find packages \
-            -maxdepth 1 \
-            -name "*.deb" \
-            | head -n1)
-
-
-
-          if [ "${{ inputs.target }}" = "410" ]; then
-
-            NAME="RyukGram_${VERSION}_410_rootless.deb"
-
-          else
-
-            NAME="RyukGram_${VERSION}_rootless.deb"
-
-          fi
-
-
-
-          mv "$FILE" "packages/$NAME"
-
-
-
-          echo "Final:"
-          ls -lh packages
-
-
-
-      # -------------------------
-      # Upload
-      # -------------------------
-
-      - name: Upload DEB artifact
-
-        if: ${{ inputs.upload_artifact }}
-
-        uses: actions/upload-artifact@v4
-
-        with:
-
-          name: RyukGram_DEB_${{ steps.tag.outputs.version }}
-
-          path: packages/*.deb
-
-          if-no-files-found: error
+        path: output/*.deb
