@@ -194,7 +194,7 @@
 "Stat pills on the posts and reels in search and explore. Open Card details to pick which stats show, reorder them, then apply." = "在搜索与探索的帖子和 Reels 上显示统计标签。打开卡片详情选择显示哪些统计、重新排序后应用。";
 "Strip tracking from links" = "移除连结中的追踪";
 "Strip tracking params" = "移除追踪参数";
-"Suppresses the \"It's time to update Instagram Beta\" nag" = "抑制\"It's time to update Instagram Beta\"提示";
+"Suppresses the \"It's time to update Instagram Beta\" nag" = "屏蔽 Instagram Beta 更新提示";;
 "Tap to apply" = "点按以应用";
 "The selected icon will be saved and shown here the next time you open this page." = "所选图标将被保存，并在下次打开此页面时显示在此处。";
 "Your sideloading app replaced Instagram's icon list. Set its app icon back to Default, then refresh Instagram to get the icons back." = "你的侧载应用替换了 Instagram 的图标列表。将它的应用图标改回默认，然后刷新 Instagram 即可恢复图标。";
@@ -1120,7 +1120,7 @@
 "Save all to Photos" = "全部保存到「照片」";
 "Save to Gallery" = "保存到相册";
 "Send from gallery" = "从相册发送";
-"Tweaks for the QuickSnap / Instants camera surface." = "QuickSnap / Instants 相机界面调整。";
+"Tweaks for the QuickSnap / Instants camera surface." = "快速捕捉/瞬间相机界面调整。";
 "Use" = "使用";
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1522,16 +1522,16 @@
 
 "Advanced" = "进阶";
 "All tweak options are disabled" = "所有调整选项已禁用";
-"Auto-clear cache" = "自动清除快取";
+"Auto-clear cache" = "自动清除缓存";
 "Every launch" = "每次启动";
 "Automatically opens settings when the app launches" = "启动应用程式时自动开启设定";
-"Cache" = "快取";
-"Cache cleared" = "快取已清除";
-"Calculating cache size…" = "计算快取大小中…";
+"Cache" = "缓存";
+"Cache cleared" = "缓存已清除";
+"Calculating cache size…" = "计算缓存大小中…";
 "Clear" = "清除";
-"Clear cache" = "清除快取";
-"Clear cache (%@)" = "清除快取 (%@)";
-"Clearing cache…" = "清除快取中…";
+"Clear cache" = "清除缓存";
+"Clear cache (%@)" = "清除缓存 (%@)";
+"Clearing cache…" = "清除缓存中…";
 "Clearing still scans on demand." = "关闭时仍会按需扫描。";
 "Daily" = "每日";
 "Disable all tweak options" = "禁用所有调整选项";
@@ -1540,7 +1540,7 @@
 "Tap to re-enable everything" = "点按以重新启用全部";
 "Turn every feature off — your settings are kept" = "关闭所有功能 — 保留你的设置";
 "Fix duplicate notifications" = "修复重复通知";
-"Free %@ of Instagram cache." = "释放 %@ 的 Instagram 快取。";
+"Free %@ of Instagram cache." = "释放 %@ 的 Instagram 缓存。";
 "Freed %@" = "已释放 %@";
 "Monthly" = "每月";
 "Nothing to clear" = "无可清除内容";
@@ -1552,10 +1552,10 @@
 "Pauses any playing video/audio when settings opens" = "设定开启时暂停任何正在播放的影片/音讯";
 "Prevents Instagram from resetting settings after crashes (at your own risk)" = "防止 Instagram 崩溃后重置设定（风险自负）";
 "Prevents two banners for the same message when IG is in the foreground" = "当 IG 在前台时,防止同一条消息显示两个横幅";
-"Remove Instagram's cached images, videos, and temporary files." = "移除 Instagram 的快取图片、影片及暂存档案。";
+"Remove Instagram's cached images, videos, and temporary files." = "移除 Instagram 的缓存图片、影片及暂存档案。";
 "Reset onboarding state" = "重设引导状态";
-"Run a silent cache clear on launch when the interval has elapsed." = "启动时在达到间隔后静默清除快取。";
-"Show cache size" = "显示快取大小";
+"Run a silent cache clear on launch when the interval has elapsed." = "启动时在达到间隔后静默清除缓存。";
+"Show cache size" = "显示缓存大小";
 "Skip the messages database when clearing — keeps DMs, drafts, and saved messages." = "清除时略过消息数据库 — 保留私信、草稿与已保存的消息。";
 "Show tweak settings on app launch" = "启动应用程式时显示调整设定";
 "Suppresses the second notification IG enqueues in-app while the notification extension is also delivering it." = "当通知扩展同时投递通知时,抑制 IG 在应用内排队的第二条通知。";
@@ -1569,11 +1569,11 @@
 "Actions" = "操作";
 "Advanced experimental features" = "进阶实验功能";
 "All experimental toggles will be turned off. Instagram will restart." = "所有实验开关都会关闭，Instagram 将重新启动。";
-"Direct Notes — Audio reply" = "Direct 记事 — 语音回复";
-"Direct Notes — Avatar reply" = "Direct 记事 — Avatar 回复";
-"Direct Notes — Friend Map" = "Direct 记事 — 朋友地图";
-"Direct Notes — GIFs & stickers reply" = "Direct 记事 — GIF 与贴图回复";
-"Direct Notes — Photo reply" = "Direct 记事 — 照片回复";
+"Direct Notes — Audio reply" = "私信便笺 — 语音回复";
+"Direct Notes — Avatar reply" = "私信便笺 — 头像回复";
+"Direct Notes — Friend Map" = "私信便笺 — 好友地图";
+"Direct Notes — GIFs & stickers reply" = "私信便笺 — GIF 与贴图回复";
+"Direct Notes — Photo reply" = "私信便笺 — 照片回复";
 "Disabled after repeated crashes." = "因多次闪退已停用。";
 "Enables GIF/sticker replies" = "启用 GIF／贴图回复";
 "Enables photo replies" = "启用照片回复";
@@ -1582,17 +1582,17 @@
 "Experimental flags reset" = "实验旗标已重置";
 "Flip what you want on, then tap Apply to restart. Some flags may not work on every account or IG version. Flags auto-reset if IG crashes on launch 3 times." = "选择要启用的项目后点「套用」以重新启动。部分功能可能无法在所有帐号或 IG 版本上运作。若 IG 连续 3 次启动闪退，旗标会自动重置。";
 "Forces Prism-gated experiments on" = "强制启用 Prism 相关实验";
-"Forces the Homecoming home surface / nav on" = "强制启用 Homecoming 首页／导览";
-"Forces the QuickSnap / Instants surface on in feed, inbox, stories, and notes tray" = "强制在动态、收件匣、限时动态与记事列显示 QuickSnap／Instants";
+"Forces the Homecoming home surface / nav on" = "强制启用返回主页首页／导览";
+"Forces the QuickSnap / Instants surface on in feed, inbox, stories, and notes tray" = "强制在动态、收件匣、限时动态与记事列显示快速捕捉／瞬间";
 "Got it" = "了解";
 "Heads up" = "注意";
 "Hidden Instagram experiments" = "隐藏的 Instagram 实验";
 "Hidden Instagram experiments (in Advanced)" = "隐藏的 Instagram 实验（位于进阶设定）";
-"Homecoming" = "Homecoming";
-"Notes & QuickSnap" = "记事与 QuickSnap";
+"Homecoming" = "返回主页";
+"Notes & QuickSnap" = "记事与快速捕捉";
 "Prism design system" = "Prism 设计系统";
-"QuickSnap (Instants)" = "QuickSnap（Instants）";
-"Shows the friend map entry in Direct Notes" = "在 Direct 记事显示朋友地图入口";
+"QuickSnap (Instants)" = "快速捕捉（瞬间）";
+"Shows the friend map entry in Direct Notes" = "在私信便笺中显示好友地图入口";
 "Surfaces" = "介面";
 "These toggles flip hidden Instagram experiments on. Some features may not work on every account or IG version. If IG keeps crashing on launch, the flags auto-reset after 3 failed starts." = "这些开关会启用 Instagram 的隐藏实验。部分功能可能无法在所有帐号或 IG 版本上运作。若 IG 连续 3 次启动闪退，旗标会自动重置。";
 "Toggle hidden Instagram experiments. Some may not work on every account or IG version." = "启用 Instagram 的隐藏实验。部分可能无法在所有帐号或 IG 版本上运作。";
@@ -1601,7 +1601,7 @@
 "Nothing to export" = "没有可导出的内容";
 "%lu applied · %lu skipped" = "已应用 %lu 项 · 跳过 %lu 项";
 "This file holds %lu entry(s). Merge keeps what you already changed, replace clears your current overrides first." = "此文件包含 %lu 项。合并会保留你现有的更改，替换会先清除它们。";
-"MobileConfig overrides" = "MobileConfig 更改";
+"MobileConfig overrides" = "配置文件更改";
 
 //////////////////////////////////////////////////////////////////////////////
 //                                  DEBUG                                   //
@@ -3275,15 +3275,15 @@
 "A pinned viewer" = "一位置顶查看者";
 "On each launch" = "每次启动时";
 
-"MobileConfig" = "MobileConfig";
-"Enable MobileConfig browser" = "启用 MobileConfig 浏览器";
-"Open MobileConfig browser" = "打开 MobileConfig 浏览器";
+"MobileConfig" = "配置文件";
+"Enable MobileConfig browser" = "启用配置文件浏览器";
+"Open MobileConfig browser" = "打开配置文件浏览器";
 "Lets the browser read values and apply your changes" = "允许浏览器读取数值并应用你的更改";
 "Search, toggle and edit config values" = "搜索、切换和编辑配置值";
 "Turn on the browser first, then restart Instagram" = "请先启用浏览器，然后重启 Instagram";
 "Use at your own risk" = "使用风险自负";
 "I understand" = "我明白";
-"MobileConfig overrides were reset after repeated crashes on launch" = "由于启动时多次崩溃，MobileConfig 覆盖已被重置";
+"MobileConfig overrides were reset after repeated crashes on launch" = "由于启动时多次崩溃，配置文件覆盖已被重置";
 "Overridden" = "已覆盖";
 "overridden" = "已覆盖";
 "Search name or config number" = "按名称或配置编号搜索";
